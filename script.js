@@ -1,67 +1,68 @@
+const fetchBtn = document.getElementById('fetchBtn');
 const dropdown = document.getElementById('airtableRecords');
-const syncButton = document.getElementById('syncBtn');
-const toast = document.createElement('div');
-toast.id = 'toast';
-document.body.appendChild(toast);
+const syncBtn = document.getElementById('syncBtn');
+const loader = document.getElementById('loader');
+const toast = document.getElementById('toast');
 
-function showToast(message, isSuccess = true) {
-    toast.textContent = message;
-    toast.style.background = isSuccess ? '#28a745' : '#dc3545';
-    toast.style.color = '#fff';
-    toast.style.padding = '10px';
-    toast.style.position = 'fixed';
-    toast.style.top = '10px';
-    toast.style.right = '10px';
-    toast.style.borderRadius = '5px';
-    toast.style.zIndex = '1000';
-    setTimeout(() => toast.remove(), 4000);
+// Toast logic
+function showToast(message, success = true) {
+  toast.textContent = message;
+  toast.className = `toast ${success ? 'success' : 'error'}`;
+  toast.style.display = 'block';
+  setTimeout(() => {
+    toast.style.display = 'none';
+    toast.className = 'toast';
+  }, 3000);
 }
 
-function setLoading(isLoading) {
-    syncButton.textContent = isLoading ? 'Syncing...' : 'Sync Selected';
-    syncButton.disabled = isLoading;
+// Loader toggle
+function setLoading(visible) {
+  loader.style.display = visible ? 'block' : 'none';
+  syncBtn.disabled = visible;
 }
 
-document.getElementById('fetchBtn').addEventListener('click', () => {
-    dropdown.innerHTML = '<option>Loading...</option>';
-    fetch('https://glyph-api.onrender.com/fetch_airtable')
-        .then(res => res.json())
-        .then(data => {
-            dropdown.innerHTML = '';
-            if (!data || !Array.isArray(data)) {
-                showToast('Invalid response format', false);
-                return;
-            }
-            data.forEach((record, i) => {
-                const option = document.createElement('option');
-                option.value = record.id || `rec${i}`;
-                option.textContent = record.fields?.Name || `Record ${i + 1}`;
-                dropdown.appendChild(option);
-            });
-        })
-        .catch(err => {
-            console.error(err);
-            showToast('Failed to fetch records', false);
-        });
-});
-
-syncButton.addEventListener('click', () => {
-    const selected = dropdown.value;
-    if (!selected) return showToast('No record selected', false);
-    
-    setLoading(true);
-    fetch('https://glyph-api.onrender.com/sync_airtable', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ fields: { id: selected } })
-    })
+// Fetch records
+fetchBtn.addEventListener('click', () => {
+  setLoading(true);
+  fetch('https://glyph-api.onrender.com/fetch_airtable')
     .then(res => res.json())
-    .then(res => {
-        showToast('Sync complete!');
+    .then(data => {
+      dropdown.innerHTML = ''; // Clear old options
+      if (!Array.isArray(data)) throw new Error('Invalid response');
+      data.forEach((record, idx) => {
+        const option = document.createElement('option');
+        option.value = JSON.stringify(record.fields);
+        option.textContent = record.fields?.Name || `Record ${idx + 1}`;
+        dropdown.appendChild(option);
+      });
+      showToast('Records loaded.');
     })
     .catch(err => {
-        console.error(err);
-        showToast('Sync failed!', false);
+      console.error(err);
+      showToast('Failed to fetch records.', false);
+    })
+    .finally(() => setLoading(false));
+});
+
+// Sync record
+syncBtn.addEventListener('click', () => {
+  const fields = dropdown.value;
+  if (!fields) return showToast('No record selected.', false);
+
+  setLoading(true);
+  fetch('https://glyph-api.onrender.com/sync_airtable', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: JSON.parse(fields) }),
+  })
+    .then(res => res.json())
+    .then(data => {
+      console.log(data);
+      showToast('Sync successful.');
+    })
+    .catch(err => {
+      console.error(err);
+      showToast('Sync failed.', false);
     })
     .finally(() => setLoading(false));
 });
