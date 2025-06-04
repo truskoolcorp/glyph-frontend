@@ -1,22 +1,11 @@
-
-<!DOCTYPE html>
-<html>
-<head>
-  <title>GLYPH Control Panel</title>
-  <style>
-    #loader { display:none; font-weight:bold; }
-    .toast { display:none; padding:10px; position:fixed; bottom:20px; right:20px; background:#222; color:#fff; border-radius:4px; }
-    .toast.success { background: green; }
-    .toast.error { background: red; }
-  </style>
-</head>
 <body>
   <h1>GLYPH Dashboard</h1>
-  <button onclick="fetchAirtable()">Fetch Airtable</button>
-  <select id="recordDropdown"></select>
-  <button onclick="syncAirtable()">Sync Selected</button>
+  <button id="fetchBtn">Fetch Airtable</button>
+  <select id="airtableRecords"><option>▼</option></select>
+  <button id="syncBtn">Sync Selected</button>
+
   <div id="loader">⏳ Loading...</div>
   <div id="toast" class="toast"></div>
+
   <script src="script.js"></script>
 </body>
-</html>
