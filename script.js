@@ -18,7 +18,11 @@ function showToast(message, type = 'success') {
   }, 4000);
 }
 
-function fetchAirtable() {
+function fetchAirtable(const statsDiv = document.getElementById('recordStats');
+statsDiv.innerHTML = `<h3>Data Preview:</h3><ul>` + 
+  Object.entries(data).map(([key, val]) => `<li>${key}: ${val?.length || 0} rows</li>`).join('') + 
+  `</ul>`;
+) {
   showLoader();
   fetch('https://glyph-api.onrender.com/fetch_airtable')
     .then(res => res.json())
