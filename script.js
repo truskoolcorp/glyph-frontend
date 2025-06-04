@@ -1,68 +1,55 @@
-const fetchBtn = document.getElementById('fetchBtn');
-const dropdown = document.getElementById('airtableRecords');
-const syncBtn = document.getElementById('syncBtn');
 const loader = document.getElementById('loader');
 const toast = document.getElementById('toast');
+const dropdown = document.getElementById('recordDropdown');
 
-// Toast logic
-function showToast(message, success = true) {
+function showLoader() {
+  loader.style.display = 'block';
+}
+function hideLoader() {
+  loader.style.display = 'none';
+}
+
+function showToast(message, type = 'success') {
+  toast.className = `toast ${type}`;
   toast.textContent = message;
-  toast.className = `toast ${success ? 'success' : 'error'}`;
   toast.style.display = 'block';
   setTimeout(() => {
     toast.style.display = 'none';
-    toast.className = 'toast';
-  }, 3000);
+  }, 4000);
 }
 
-// Loader toggle
-function setLoading(visible) {
-  loader.style.display = visible ? 'block' : 'none';
-  syncBtn.disabled = visible;
-}
-
-// Fetch records
-fetchBtn.addEventListener('click', () => {
-  setLoading(true);
+function fetchAirtable() {
+  showLoader();
   fetch('https://glyph-api.onrender.com/fetch_airtable')
     .then(res => res.json())
     .then(data => {
-      dropdown.innerHTML = ''; // Clear old options
-      if (!Array.isArray(data)) throw new Error('Invalid response');
-      data.forEach((record, idx) => {
-        const option = document.createElement('option');
-        option.value = JSON.stringify(record.fields);
-        option.textContent = record.fields?.Name || `Record ${idx + 1}`;
-        dropdown.appendChild(option);
+      dropdown.innerHTML = '';
+      Object.entries(data).forEach(([key, val]) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = `${key}: ${val?.length || 0} records`;
+        dropdown.appendChild(opt);
       });
-      showToast('Records loaded.');
+      showToast("Fetched Airtable data", "success");
     })
-    .catch(err => {
-      console.error(err);
-      showToast('Failed to fetch records.', false);
-    })
-    .finally(() => setLoading(false));
-});
+    .catch(() => showToast("Error fetching records", "error"))
+    .finally(hideLoader);
+}
 
-// Sync record
-syncBtn.addEventListener('click', () => {
-  const fields = dropdown.value;
-  if (!fields) return showToast('No record selected.', false);
+function syncAirtable() {
+  const selected = dropdown.value;
+  if (!selected) {
+    return showToast("Select a record type to sync", "error");
+  }
 
-  setLoading(true);
+  showLoader();
   fetch('https://glyph-api.onrender.com/sync_airtable', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fields: JSON.parse(fields) }),
+    body: JSON.stringify({ fields: { type: selected } })
   })
     .then(res => res.json())
-    .then(data => {
-      console.log(data);
-      showToast('Sync successful.');
-    })
-    .catch(err => {
-      console.error(err);
-      showToast('Sync failed.', false);
-    })
-    .finally(() => setLoading(false));
-});
+    .then(() => showToast("Sync successful"))
+    .catch(() => showToast("Sync failed", "error"))
+    .finally(hideLoader);
+}
