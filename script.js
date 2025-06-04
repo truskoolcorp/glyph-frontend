@@ -1,77 +1,67 @@
+const dropdown = document.getElementById('airtableRecords');
+const syncButton = document.getElementById('syncBtn');
+const toast = document.createElement('div');
+toast.id = 'toast';
+document.body.appendChild(toast);
 
-// == Configuration ==
-const API_BASE = "https://glyph-api.onrender.com";
-
-// == DOM Elements ==
-const loader = document.getElementById("loader");
-const toast = document.getElementById("toast");
-const recordDropdown = document.getElementById("recordDropdown");
-
-// == Utility Functions ==
-function showLoader(show) {
-  loader.style.display = show ? "block" : "none";
-}
 function showToast(message, isSuccess = true) {
-  toast.innerText = message;
-  toast.className = isSuccess ? "toast success" : "toast error";
-  toast.style.display = "block";
-  setTimeout(() => (toast.style.display = "none"), 4000);
-}
-function displayResponse(title, data) {
-  const output = document.createElement("div");
-  output.innerHTML = `<h3>${title}</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
-  document.body.appendChild(output);
+    toast.textContent = message;
+    toast.style.background = isSuccess ? '#28a745' : '#dc3545';
+    toast.style.color = '#fff';
+    toast.style.padding = '10px';
+    toast.style.position = 'fixed';
+    toast.style.top = '10px';
+    toast.style.right = '10px';
+    toast.style.borderRadius = '5px';
+    toast.style.zIndex = '1000';
+    setTimeout(() => toast.remove(), 4000);
 }
 
-// == API Calls ==
-function fetchAirtable() {
-  showLoader(true);
-  fetch(\`\${API_BASE}/fetch_airtable\`)
+function setLoading(isLoading) {
+    syncButton.textContent = isLoading ? 'Syncing...' : 'Sync Selected';
+    syncButton.disabled = isLoading;
+}
+
+document.getElementById('fetchBtn').addEventListener('click', () => {
+    dropdown.innerHTML = '<option>Loading...</option>';
+    fetch('https://glyph-api.onrender.com/fetch_airtable')
+        .then(res => res.json())
+        .then(data => {
+            dropdown.innerHTML = '';
+            if (!data || !Array.isArray(data)) {
+                showToast('Invalid response format', false);
+                return;
+            }
+            data.forEach((record, i) => {
+                const option = document.createElement('option');
+                option.value = record.id || `rec${i}`;
+                option.textContent = record.fields?.Name || `Record ${i + 1}`;
+                dropdown.appendChild(option);
+            });
+        })
+        .catch(err => {
+            console.error(err);
+            showToast('Failed to fetch records', false);
+        });
+});
+
+syncButton.addEventListener('click', () => {
+    const selected = dropdown.value;
+    if (!selected) return showToast('No record selected', false);
+    
+    setLoading(true);
+    fetch('https://glyph-api.onrender.com/sync_airtable', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ fields: { id: selected } })
+    })
     .then(res => res.json())
-    .then(data => {
-      showLoader(false);
-      displayResponse("📋 Airtable Records", data);
-      populateDropdown(data); // fill dropdown
+    .then(res => {
+        showToast('Sync complete!');
     })
     .catch(err => {
-      showLoader(false);
-      showToast("Failed to fetch Airtable data", false);
-      console.error(err);
-    });
-}
-
-function syncAirtable() {
-  const selected = recordDropdown.value;
-  if (!selected) return showToast("No record selected!", false);
-
-  const fields = { id: selected, status: "synced" }; // Example field update
-
-  showLoader(true);
-  fetch(\`\${API_BASE}/sync_airtable\`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fields })
-  })
-    .then(res => res.json())
-    .then(data => {
-      showLoader(false);
-      displayResponse("📡 Airtable Synced", data);
-      showToast("Airtable sync complete!");
+        console.error(err);
+        showToast('Sync failed!', false);
     })
-    .catch(err => {
-      showLoader(false);
-      showToast("Sync failed", false);
-      console.error(err);
-    });
-}
-
-function populateDropdown(data) {
-  if (!Array.isArray(data)) return;
-  recordDropdown.innerHTML = "";
-  data.forEach((record, i) => {
-    const option = document.createElement("option");
-    option.value = record.id || \`record_\${i}\`;
-    option.textContent = record.name || \`Record #\${i + 1}\`;
-    recordDropdown.appendChild(option);
-  });
-}
+    .finally(() => setLoading(false));
+});
