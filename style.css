@@ -1,60 +1,60 @@
 body {
-  background-color: #0d0d0d;
-  color: #33ffcc;
-  font-family: 'Courier New', monospace;
+  font-family: 'Segoe UI', sans-serif;
+  background: #111;
+  color: #eee;
   padding: 2rem;
+  line-height: 1.6;
 }
 
 h1 {
   font-size: 2rem;
-  color: #66ffe0;
-  margin-bottom: 1rem;
+  color: #0ff;
 }
 
 button {
-  background-color: #1a1a1a;
-  color: #33ffcc;
-  border: 1px solid #33ffcc;
+  margin-right: 1rem;
   padding: 0.5rem 1rem;
-  margin-right: 0.5rem;
+  background: #222;
+  color: #0ff;
+  border: 1px solid #0ff;
   cursor: pointer;
+  border-radius: 4px;
 }
 
 button:hover {
-  background-color: #33ffcc;
-  color: #000;
+  background: #0ff;
+  color: #111;
 }
 
 select {
-  background-color: #0d0d0d;
-  color: #33ffcc;
-  border: 1px solid #33ffcc;
-  margin-right: 0.5rem;
+  padding: 0.5rem;
+  background: #222;
+  color: #0ff;
+  border: 1px solid #0ff;
+}
+
+.toast {
+  display: none;
+  padding: 0.75rem;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  border-radius: 6px;
+  font-weight: bold;
+  z-index: 100;
+}
+
+.toast.success {
+  background: #2ecc71;
+  color: #000;
+}
+
+.toast.error {
+  background: #e74c3c;
+  color: #fff;
 }
 
 #loader {
   display: none;
   margin-top: 1rem;
-  font-style: italic;
-  color: gold;
-}
-
-.toast {
-  display: none;
-  padding: 10px;
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  border-radius: 4px;
-  font-weight: bold;
-}
-
-.toast.success {
-  background: #004d00;
-  color: #00ff99;
-}
-
-.toast.error {
-  background: #330000;
-  color: #ff4d4d;
 }
