@@ -1,59 +1,43 @@
-const loader = document.getElementById('loader');
-const toast = document.getElementById('toast');
-const dropdown = document.getElementById('recordDropdown');
+function fetchAirtable() {
+  const statsDiv = document.getElementById("recordStats");
+  const dropdown = document.getElementById("airtableRecords");
 
-function showLoader() {
-  loader.style.display = 'block';
-}
-function hideLoader() {
-  loader.style.display = 'none';
-}
-
-function showToast(message, type = 'success') {
-  toast.className = `toast ${type}`;
-  toast.textContent = message;
-  toast.style.display = 'block';
-  setTimeout(() => {
-    toast.style.display = 'none';
-  }, 4000);
-}
-
-function fetchAirtable(const statsDiv = document.getElementById('recordStats');
-statsDiv.innerHTML = `<h3>Data Preview:</h3><ul>` + 
-  Object.entries(data).map(([key, val]) => `<li>${key}: ${val?.length || 0} rows</li>`).join('') + 
-  `</ul>`;
-) {
   showLoader();
-  fetch('https://glyph-api.onrender.com/fetch_airtable')
-    .then(res => res.json())
-    .then(data => {
-      dropdown.innerHTML = '';
+  statsDiv.innerHTML = "⏳ Loading…";
+  dropdown.innerHTML = "";
+
+  fetch("https://glyph-api.onrender.com/fetch_airtable")
+    .then((res) => {
+      if (!res.ok) throw new Error("API error");
+      return res.json();
+    })
+    .then((data) => {
+      console.log("✅ Airtable data received:", data);
+
+      if (!data || Object.keys(data).length === 0) {
+        statsDiv.innerHTML = "⚠️ No data found.";
+        return;
+      }
+
+      statsDiv.innerHTML = `<h3>Preview</h3><ul>${Object.entries(data)
+        .map(([key, val]) => `<li><b>${key}</b>: ${val.length || 0} rows</li>`)
+        .join("")}</ul>`;
+
       Object.entries(data).forEach(([key, val]) => {
-        const opt = document.createElement('option');
+        const opt = document.createElement("option");
         opt.value = key;
-        opt.textContent = `${key}: ${val?.length || 0} records`;
+        opt.textContent = `${key} (${val.length || 0})`;
         dropdown.appendChild(opt);
       });
-      showToast("Fetched Airtable data", "success");
+
+      showToast("Records loaded!");
     })
-    .catch(() => showToast("Error fetching records", "error"))
-    .finally(hideLoader);
-}
-
-function syncAirtable() {
-  const selected = dropdown.value;
-  if (!selected) {
-    return showToast("Select a record type to sync", "error");
-  }
-
-  showLoader();
-  fetch('https://glyph-api.onrender.com/sync_airtable', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fields: { type: selected } })
-  })
-    .then(res => res.json())
-    .then(() => showToast("Sync successful"))
-    .catch(() => showToast("Sync failed", "error"))
-    .finally(hideLoader);
+    .catch((err) => {
+      console.error("❌ Fetch error:", err);
+      statsDiv.innerHTML = "❌ Failed to load data.";
+      showToast("Error loading Airtable data", true);
+    })
+    .finally(() => {
+      hideLoader();
+    });
 }
