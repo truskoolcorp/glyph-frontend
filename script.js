@@ -1,43 +1,96 @@
+const loader = document.getElementById('loader');
+const toast = document.getElementById('toast');
+const dropdown = document.getElementById('airtableRecords');
+const statsDiv = document.getElementById('recordStats');
+
+function showLoader() {
+  loader.style.display = 'block';
+}
+function hideLoader() {
+  loader.style.display = 'none';
+}
+
+function showToast(message, type = 'success') {
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  toast.style.display = 'block';
+  setTimeout(() => {
+    toast.style.display = 'none';
+  }, 4000);
+}
+
 function fetchAirtable() {
-  const statsDiv = document.getElementById("recordStats");
-  const dropdown = document.getElementById("airtableRecords");
-
   showLoader();
-  statsDiv.innerHTML = "⏳ Loading…";
-  dropdown.innerHTML = "";
+  fetch('https://glyph-api.onrender.com/fetch_airtable')
+    .then(res => res.json())
+    .then(data => {
+      dropdown.innerHTML = ''; // Clear dropdown
+      statsDiv.innerHTML = '';
 
-  fetch("https://glyph-api.onrender.com/fetch_airtable")
-    .then((res) => {
-      if (!res.ok) throw new Error("API error");
-      return res.json();
-    })
-    .then((data) => {
-      console.log("✅ Airtable data received:", data);
-
-      if (!data || Object.keys(data).length === 0) {
-        statsDiv.innerHTML = "⚠️ No data found.";
+      if (!data || typeof data !== 'object' || Object.keys(data).length === 0) {
+        statsDiv.innerHTML = '<p>No data found.</p>';
+        showToast('No records returned', 'fail');
+        hideLoader();
         return;
       }
 
-      statsDiv.innerHTML = `<h3>Preview</h3><ul>${Object.entries(data)
-        .map(([key, val]) => `<li><b>${key}</b>: ${val.length || 0} rows</li>`)
-        .join("")}</ul>`;
+      const entries = Object.entries(data);
+      dropdown.innerHTML = entries.map(([key]) =>
+        `<option value="${key}">${key}</option>`
+      ).join('');
 
-      Object.entries(data).forEach(([key, val]) => {
-        const opt = document.createElement("option");
-        opt.value = key;
-        opt.textContent = `${key} (${val.length || 0})`;
-        dropdown.appendChild(opt);
-      });
+      statsDiv.innerHTML = `
+        <h3>Preview</h3>
+        <ul>
+          ${entries.map(([key, val]) => {
+            const count = Array.isArray(val) ? val.length : 0;
+            return `<li><strong>${key}:</strong> ${count} rows</li>`;
+          }).join('')}
+        </ul>
+      `;
 
-      showToast("Records loaded!");
+      showToast('Fetched Airtable data!');
+      hideLoader();
     })
-    .catch((err) => {
-      console.error("❌ Fetch error:", err);
-      statsDiv.innerHTML = "❌ Failed to load data.";
-      showToast("Error loading Airtable data", true);
-    })
-    .finally(() => {
+    .catch(err => {
+      console.error(err);
+      showToast('Failed to fetch Airtable', 'fail');
       hideLoader();
     });
 }
+
+function syncSelected() {
+  const selected = dropdown.value;
+  showLoader();
+  fetch(`https://glyph-api.onrender.com/sync_codex`)
+    .then(res => res.json())
+    .then(data => {
+      showToast(`Synced ${selected}!`);
+      hideLoader();
+    })
+    .catch(err => {
+      console.error(err);
+      showToast('Sync failed', 'fail');
+      hideLoader();
+    });
+}
+
+function checkCORS() {
+  fetch('https://glyph-api.onrender.com/ping', {
+    method: 'OPTIONS',
+    mode: 'cors'
+  })
+  .then(() => {
+    document.getElementById('corsStatus').innerHTML =
+      '<h3>CORS Check</h3><p class="badge success">CORS: OK</p>';
+  })
+  .catch(() => {
+    document.getElementById('corsStatus').innerHTML =
+      '<h3>CORS Check</h3><p class="badge fail">CORS: Blocked</p>';
+  });
+}
+
+document.getElementById('fetchBtn')?.addEventListener('click', fetchAirtable);
+document.getElementById('syncBtn')?.addEventListener('click', syncSelected);
+
+checkCORS();
