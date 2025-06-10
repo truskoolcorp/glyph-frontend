@@ -1,12 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GLYPH API Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #121212;
+      color: #fff;
+      display: flex;
+    }
+    .sidebar {
+      width: 220px;
+      background-color: #1e1e1e;
+      padding: 20px;
+      height: 100vh;
+      box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+    }
+    .sidebar h2 {
+      font-size: 1.2em;
+      margin-bottom: 1em;
+    }
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+    }
+    .sidebar ul li {
+      padding: 10px 0;
+      cursor: pointer;
+    }
+    .sidebar ul li:hover {
+      color: #00bcd4;
+    }
+    .content {
+      flex-grow: 1;
+      padding: 40px;
+    }
+    select, button {
+      margin-top: 1rem;
+      padding: 10px;
+      font-size: 1em;
+      background-color: #222;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: #00bcd4;
+      color: #000;
+      cursor: pointer;
+    }
+    #output, #corsStatus, #metrics, #history {
+      background-color: #1e1e1e;
+      padding: 20px;
+      margin-top: 20px;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      border: 1px solid #333;
+    }
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #00bcd4;
+      color: black;
+      padding: 10px 15px;
+      border-radius: 5px;
+      display: none;
+    }
+    .badge {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .success { background-color: #4caf50; color: white; }
+    .fail { background-color: #f44336; color: white; }
+  </style>
+</head>
 <body>
-  <h1>GLYPH Dashboard</h1>
-  <button id="fetchBtn">Fetch Airtable</button>
-  <select id="airtableRecords"><option>▼</option></select>
-  <button id="syncBtn">Sync Selected</button>
-  
-<div id="recordStats" style="margin-top:20px;"></div>
-  <div id="loader">⏳ Loading...</div>
-  <div id="toast" class="toast"></div>
+  <div class="sidebar">
+    <h2>GLYPH API</h2>
+    <ul>
+      <li onclick="selectEndpoint('ping')">Ping</li>
+      <li onclick="selectEndpoint('status')">Status</li>
+      <li onclick="selectEndpoint('metadata')">Metadata</li>
+    </ul>
+  </div>
 
-  <script src="script.js"></script>
+  <div class="content">
+    <h1>API Dashboard</h1>
+    <label for="endpoint">Select API Endpoint:</label><br />
+    <select id="endpoint">
+      <option value="ping">/ping</option>
+      <option value="status">/status</option>
+      <option value="metadata">/metadata</option>
+    </select><br />
+    <button onclick="fetchData()">Sync</button>
+    <button onclick="fetchAirtable()">Fetch Airtable</button>
+    <div id="metrics"></div>
+    <div id="output"></div>
+    <div id="history"></div>
+    <div id="corsStatus"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const callHistory = [];
+
+    window.fetchAirtable = function () {
+      const loader = document.getElementById("loader");
+      const toast = document.getElementById("toast");
+      const dropdown = document.getElementById("endpoint");
+      const statsDiv = document.getElementById("metrics");
+
+      loader.style.display = "block";
+
+      fetch("https://glyph-api.onrender.com/fetch_airtable")
+        .then((res) => {
+          if (!res.ok) throw new Error("Fetch failed");
+          return res.json();
+        })
+        .then((data) => {
+          dropdown.innerHTML = "";
+          statsDiv.innerHTML = "<h3>Preview</h3><ul>";
+
+          Object.entries(data).forEach(([key, val]) => {
+            const opt = document.createElement("option");
+            opt.value = key;
+            opt.textContent = `${key}: ${Array.isArray(val) ? val.length : 0} rows`;
+            dropdown.appendChild(opt);
+            statsDiv.innerHTML += `<li>${key}: ${Array.isArray(val) ? val.length : 0} rows</li>`;
+          });
+
+          statsDiv.innerHTML += "</ul>";
+          toast.innerText = "Fetched successfully";
+          toast.style.display = "block";
+          toast.style.background = "#4caf50";
+        })
+        .catch((err) => {
+          toast.innerText = "Fetch failed";
+          toast.style.display = "block";
+          toast.style.background = "#f44336";
+          console.error(err);
+        })
+        .finally(() => {
+          loader.style.display = "none";
+          setTimeout(() => {
+            toast.style.display = "none";
+          }, 3000);
+        });
+    }
+
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.style.backgroundColor = isError ? '#f44336' : '#00bcd4';
+      toast.style.display = 'block';
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3000);
+    }
+
+    function selectEndpoint(endpoint) {
+      document.getElementById('endpoint').value = endpoint;
+    }
+
+    function updateMetrics(data) {
+      const metricsDiv = document.getElementById('metrics');
+      const lastSync = new Date().toLocaleString();
+      metricsDiv.innerHTML = `
+        <h3>Metrics</h3>
+        <p><strong>Last Sync:</strong> ${lastSync}</p>
+        <p><strong>Status:</strong> <span class="badge success">Success</span></p>
+      `;
+    }
+
+    function updateHistory(endpoint, success) {
+      callHistory.unshift({ endpoint, time: new Date().toLocaleTimeString(), success });
+      if (callHistory.length > 5) callHistory.pop();
+
+      const historyDiv = document.getElementById('history');
+      historyDiv.innerHTML = '<h3>Call History</h3>' + callHistory.map(h => `
+        <p>${h.time} - <strong>${h.endpoint}</strong> - <span class="badge ${h.success ? 'success' : 'fail'}">${h.success ? 'Success' : 'Fail'}</span></p>
+      `).join('');
+    }
+
+    function checkCORS() {
+      fetch('https://glyph-api.onrender.com/ping', {
+        method: 'OPTIONS',
+        mode: 'cors'
+      })
+      .then(() => {
+        document.getElementById('corsStatus').innerHTML = '<h3>CORS Check</h3><p class="badge success">CORS: OK</p>';
+      })
+      .catch(() => {
+        document.getElementById('corsStatus').innerHTML = '<h3>CORS Check</h3><p class="badge fail">CORS: Blocked</p>';
+      });
+    }
+
+    function fetchData() {
+      const endpoint = document.getElementById('endpoint').value;
+      fetch(`https://glyph-api.onrender.com/${endpoint}`, {
+        headers: {
+          'x-user-key': 'GLYPH_DASH_USER'
+        }
+      })
+      .then(response => {
+        if (!response.ok) throw new Error('API Error');
+        return response.json();
+      })
+      .then(data => {
+        document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+        updateMetrics(data);
+        updateHistory(endpoint, true);
+        showToast('Data synced successfully!');
+      })
+      .catch(error => {
+        document.getElementById('output').textContent = '';
+        updateHistory(endpoint, false);
+        showToast('Failed to fetch data', true);
+        console.error(error);
+      });
+    }
+
+    checkCORS();
+  </script>
 </body>
+</html>
